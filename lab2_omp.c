@@ -2,15 +2,21 @@
 #include <omp.h>
 #include <math.h>
 #include <stdio.h>
-int debug =1;
-int debug2 = 1;
-int NUMTHREADS= 4;
+int debug =0;
+int debug2 = 0;
 
 void calctranspose(int M, int N, float* D, float** D_T){
     for(int i=0;i<N;i++){
         for(int j=0;j<M;j++){
             (*D_T)[M*i+j] = D[N*j+i];
         }
+    }
+}
+float absfunc(float a, float b){
+    if(a>b){
+        return a-b;
+    }else{
+        return b-a;
     }
 }
 
@@ -38,23 +44,15 @@ int multiply(int adim1, int adim2, float * a, int bdim1,int bdim2, float * b, fl
     if(adim2!=bdim1){
         return -1;
     }
-    // #pragma omp parallel
-    #pragma omp parallel for collapse(2)
-    
-        for(int i1=0;i1<adim1;i1++){
-            for(int j1=0;j1<bdim2;j1++){
-
-                // printf("num threads is %d\n", omp_get_num_threads());
-                // int tid = omp_get_thread_num(); 
-                // printf("hello world %d \n", tid);
-                float temp=0.0;
-                for(int i2=0;i2<adim2;i2++){
-                    temp += (a[adim2*i1+i2])*(b[bdim2*i2+ j1]);
-                }
-                (*c)[bdim2*i1+j1]=temp;
+    for(int i1=0;i1<adim1;i1++){
+        for(int j1=0;j1<bdim2;j1++){
+            float temp=0.0;
+            for(int i2=0;i2<adim2;i2++){
+                temp += (a[adim2*i1+i2])*(b[bdim2*i2+ j1]);
             }
+            (*c)[bdim2*i1+j1]=temp;
         }
-    
+    }
     return 0;
 }
 int subtract(int adim1, int adim2, float * a, int bdim1,int bdim2, float * b, float ** c){
@@ -78,13 +76,17 @@ float sumsquareelements(int M, int N, float *m){
     return temp;
 }
 
-float absfunc(float a, float b){
-    if(a>b){
-        return a-b;
-    }else{
-        return b-a;
+float sumabsoelements(int M, int N, float *m ){
+    float temp=0.0;
+    for(int i=0;i<M;i++){
+        for(int j=0;j<N;j++){
+            temp += absfunc(m[N*i+j],0.0);
+        }
     }
+    return temp;
 }
+
+
 float proj(int M,float ** a, int j, float ** e, int k){
     float temp =0.0;
     for(int i=0;i<M;i++){
@@ -95,7 +97,7 @@ float proj(int M,float ** a, int j, float ** e, int k){
 float norm(int M, float ** u, int j){
     float temp=0.0;
     for(int i=0;i<M;i++){
-        temp += ((*u)[M*i+j])*(((*u)[M*i+j]));
+        temp += ((*u)[M*i+j])*((*u)[M*i+j]);
     }
     temp = (float) sqrt(temp);
     return temp;
@@ -176,17 +178,17 @@ int qrmodifiedfactors(int M, float * a, float ** q, float ** r){
     for(int i=0;i<M;i++){
         float tempnorm = norm(M,&v,i);
         if(tempnorm==0){
-            printf("division by zero being done\n");
+            if(0==debug) printf("division by zero being done\n");
         }
         (*r)[M*i+i]= tempnorm;
         for(int rowiter=0;rowiter<M;rowiter++){
-            (*q)[M*rowiter+i]= (1.0/tempnorm)*(v[M*rowiter+i]);
+            (*q)[M*rowiter+i] = (1.0/tempnorm)*(v[M*rowiter+i]);
         }
         for(int j=i+1;j<M;j++){
             float rij = proj(M,q,i,&v,j);
             (*r)[M*i+j] = rij;
             for(int rowiter=0;rowiter<M;rowiter++){
-                v[M*rowiter+j] = v[M*rowiter+j] -rij*((*q)[M*rowiter+i]);
+                v[M*rowiter+j] = v[M*rowiter+j] - rij*((*q)[M*rowiter+i]);
             }
 
         }
@@ -198,17 +200,34 @@ int qrmodifiedfactors(int M, float * a, float ** q, float ** r){
     // int statusmultiply = multiply(M,M,q_tm,M,M,a,r);
     if(0==debug){
 
-        printf("q is\n");
-        printMatrix(M,M,q);
-        printf("r is\n");
-        printMatrix(M,M,r);
+        // printf("q is\n");
+        // printMatrix(M,M,q);
+        // printf("r is\n");
+        // printMatrix(M,M,r);
         float * qmulr = (float *)malloc(sizeof(float) * M *M);
         multiply(M,M,*q,M,M,*r,&qmulr);
-        printf("q x r is\n");
-        printMatrix(M,M,&qmulr);
-        printf("original matrix is\n");
-        printMatrix(M,M,&a);
+        // printf("q x r is\n");
+        // printMatrix(M,M,&qmulr);
+        // printf("original matrix is\n");
+        // printMatrix(M,M,&a);
         // free(q_tm);
+        float * diffm = (float *)malloc(sizeof(float) * M *M);
+        subtract(M,M,a,M,M,qmulr,&diffm);
+        float tempabsodiff = sumabsoelements(M,M,diffm);
+        printf("Absolute diff qr is %.6f -------------------------------\n",tempabsodiff);
+        if(tempabsodiff>0.001){
+            printf("q is\n");
+            printMatrix(M,M,q);
+            printf("r is\n");
+            printMatrix(M,M,r);
+            printf("q x r is\n");
+            printMatrix(M,M,&qmulr);
+            printf("original matrix is\n");
+            printMatrix(M,M,&a);
+            printf("diff matrix is \n");
+            printMatrix(M,M,&diffm);
+        }
+        free(diffm);
         free(qmulr);
     }
     return 0;
@@ -217,6 +236,8 @@ int qrmodifiedfactors(int M, float * a, float ** q, float ** r){
 
 
 int findeigen(int M, float * darg, float ** eigenvector, float ** eigenvalues){
+    if(debug==0) printf("original d is \n");
+    if(debug==0) printMatrix(M,M,&darg);
     float * d_eval = (float *)malloc(sizeof(float) * M*M);
     for(int i=0;i<M;i++){
         for(int j=0;j<M;j++){
@@ -261,16 +282,33 @@ int findeigen(int M, float * darg, float ** eigenvector, float ** eigenvalues){
         statusqr = qrmodifiedfactors(M, d_eval, &qmat, &rmat);
         statusmultiply = multiply(M,M,rmat,M,M,qmat, &d_evalnew);
         statusmultiply = multiply(M,M,e_evec,M,M,qmat,&e_evecnew);
+        if(debug==0) printf("D_eval is \n");
+        if(debug==0) printMatrix(M,M,&d_eval);
+        if(debug==0) printf("D_evalnew is \n");
+        if(debug==0) printMatrix(M,M,&d_evalnew);
+        if(debug==0) printf("e_eval is \n");
+        if(debug==0) printMatrix(M,M,&e_evec);
+        if(debug==0) printf("e_evalnew is \n");
+        if(debug==0) printMatrix(M,M,&e_evecnew);
+        // if(debug==0) printf("q is \n");
+        // if(debug==0) printMatrix(M,M,&qmat);
+        // if(debug==0) printf("r is \n");
+        // if(debug==0) printMatrix(M,M,&rmat);
+
         numchangesd=0;
         numchangese=0;
+        float tempdiff1=0.0;
+        float tempdiff2=0.0;
         for(int i=0;i<M;i++){
             for(int j=0;j<M;j++){
-                if(absfunc(d_evalnew[M*i+j],d_eval[M*i+j])>0.0001){
-                    numchangesd+=1;
-                }
-                if(absfunc(e_evecnew[M*i+j],e_evec[M*i+j])>0.0001){
-                    numchangese+=1;
-                }
+                // if(absfunc(d_evalnew[M*i+j],d_eval[M*i+j])>0.0001){
+                //     numchangesd+=1;
+                // }
+                // if(absfunc(e_evecnew[M*i+j],e_evec[M*i+j])>0.0001){
+                //     numchangese+=1;
+                // }
+                tempdiff1 += absfunc(d_evalnew[M*i+j],d_eval[M*i+j]);
+                tempdiff2 += absfunc(e_evecnew[M*i+j],e_evec[M*i+j]);
             }
         } 
         for(int i=0;i<M;i++){
@@ -281,12 +319,16 @@ int findeigen(int M, float * darg, float ** eigenvector, float ** eigenvalues){
         } 
         numloop+=1;
         if(0==debug) printf("loop %d ending with numchangesd %d and numchangese %d\n",numloop, numchangesd, numchangese);
-        if(numchangesd<1 && numchangese<1){
+        
+        if(0==debug2) printf("eigen %d loop with diff %.6f %.6f\n",numloop, tempdiff1, tempdiff2);
+        if(tempdiff1 < 0.001 && tempdiff2<0.001){
             if(0==debug) printf("breaking on loop %d\n",numloop);
+            if(0==debug2) printf("breaking on loop %d\n",numloop);
             break;
         }
-        if(numloop>1000){
-            if(0==debug) printf("eigen end loop\n");
+        if(numloop>4){
+            if(0==debug) printf("eigen end loop with diff %.6f %.6f\n", tempdiff1, tempdiff2);
+            if(0==debug2) printf("eigen end loop with diff %.6f %.6f\n", tempdiff1, tempdiff2);
             break;
         }
     }
@@ -328,14 +370,6 @@ void SVD(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
 {
     //Sigma is not in matrix form
     //First calculate d_t
-    // omp_set_dynamic(0);
-    omp_set_num_threads(NUMTHREADS);
-    // #pragma omp parallel
-    // {
-    //     int tid = omp_get_thread_num(); 
-    //     printf("hello world %d \n", tid);
-    // }
-    // printf("number of threads is %d\n",omp_get_num_threads());
     float * D_T = (float *)malloc(sizeof(float) * N*M);
     calctranspose(M, N, D, &D_T);
     //now we need to calculate svd of d_t
