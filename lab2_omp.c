@@ -4,6 +4,7 @@
 #include <stdio.h>
 int debug =1;
 int debug2 = 1;
+int NUMTHREADS= 4;
 
 void calctranspose(int M, int N, float* D, float** D_T){
     for(int i=0;i<N;i++){
@@ -37,15 +38,23 @@ int multiply(int adim1, int adim2, float * a, int bdim1,int bdim2, float * b, fl
     if(adim2!=bdim1){
         return -1;
     }
-    for(int i1=0;i1<adim1;i1++){
-        for(int j1=0;j1<bdim2;j1++){
-            float temp=0.0;
-            for(int i2=0;i2<adim2;i2++){
-                temp += (a[adim2*i1+i2])*(b[bdim2*i2+ j1]);
+    // #pragma omp parallel
+    #pragma omp parallel for collapse(2)
+    
+        for(int i1=0;i1<adim1;i1++){
+            for(int j1=0;j1<bdim2;j1++){
+
+                // printf("num threads is %d\n", omp_get_num_threads());
+                // int tid = omp_get_thread_num(); 
+                // printf("hello world %d \n", tid);
+                float temp=0.0;
+                for(int i2=0;i2<adim2;i2++){
+                    temp += (a[adim2*i1+i2])*(b[bdim2*i2+ j1]);
+                }
+                (*c)[bdim2*i1+j1]=temp;
             }
-            (*c)[bdim2*i1+j1]=temp;
         }
-    }
+    
     return 0;
 }
 int subtract(int adim1, int adim2, float * a, int bdim1,int bdim2, float * b, float ** c){
@@ -319,6 +328,14 @@ void SVD(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
 {
     //Sigma is not in matrix form
     //First calculate d_t
+    // omp_set_dynamic(0);
+    omp_set_num_threads(NUMTHREADS);
+    // #pragma omp parallel
+    // {
+    //     int tid = omp_get_thread_num(); 
+    //     printf("hello world %d \n", tid);
+    // }
+    // printf("number of threads is %d\n",omp_get_num_threads());
     float * D_T = (float *)malloc(sizeof(float) * N*M);
     calctranspose(M, N, D, &D_T);
     //now we need to calculate svd of d_t
