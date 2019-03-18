@@ -2,7 +2,7 @@
 #include <omp.h>
 #include <math.h>
 #include <stdio.h>
-int debug =0;
+int debug =1;
 
 void calctranspose(int M, int N, float* D, float** D_T){
     for(int i=0;i<N;i++){
@@ -109,21 +109,24 @@ int qrfactors(int M, float * a, float ** q, float ** r){
             // }
         }
     }
-    float * q_tm = (float *)malloc((sizeof(float) *M*M));
-    calctranspose(M,M,*q,&q_tm);
-    int statusmultiply = multiply(M,M,q_tm,M,M,a,r);
-    printf("q is\n");
-    printMatrix(M,M,q);
-    printf("r is\n");
-    printMatrix(M,M,r);
-    float * qmulr = (float *)malloc(sizeof(float) * M *M);
-    multiply(M,M,*q,M,M,*r,&qmulr);
-    printf("q x r is\n");
-    printMatrix(M,M,&qmulr);
-    printf("original matrix is\n");
-    printMatrix(M,M,&a);
-    free(q_tm);
-    free(qmulr);
+    if(0==debug){
+
+        float * q_tm = (float *)malloc((sizeof(float) *M*M));
+        calctranspose(M,M,*q,&q_tm);
+        int statusmultiply = multiply(M,M,q_tm,M,M,a,r);
+        printf("q is\n");
+        printMatrix(M,M,q);
+        printf("r is\n");
+        printMatrix(M,M,r);
+        float * qmulr = (float *)malloc(sizeof(float) * M *M);
+        multiply(M,M,*q,M,M,*r,&qmulr);
+        printf("q x r is\n");
+        printMatrix(M,M,&qmulr);
+        printf("original matrix is\n");
+        printMatrix(M,M,&a);
+        free(q_tm);
+        free(qmulr);
+    }
     free(u);
     free(e);
     return 0;
@@ -163,18 +166,21 @@ int qrmodifiedfactors(int M, float * a, float ** q, float ** r){
     // float * q_tm = (float *)malloc((sizeof(float) *M*M));
     // calctranspose(M,M,*q,&q_tm);
     // int statusmultiply = multiply(M,M,q_tm,M,M,a,r);
-    printf("q is\n");
-    printMatrix(M,M,q);
-    printf("r is\n");
-    printMatrix(M,M,r);
-    float * qmulr = (float *)malloc(sizeof(float) * M *M);
-    multiply(M,M,*q,M,M,*r,&qmulr);
-    printf("q x r is\n");
-    printMatrix(M,M,&qmulr);
-    printf("original matrix is\n");
-    printMatrix(M,M,&a);
-    // free(q_tm);
-    free(qmulr);
+    if(0==debug){
+
+        printf("q is\n");
+        printMatrix(M,M,q);
+        printf("r is\n");
+        printMatrix(M,M,r);
+        float * qmulr = (float *)malloc(sizeof(float) * M *M);
+        multiply(M,M,*q,M,M,*r,&qmulr);
+        printf("q x r is\n");
+        printMatrix(M,M,&qmulr);
+        printf("original matrix is\n");
+        printMatrix(M,M,&a);
+        // free(q_tm);
+        free(qmulr);
+    }
     return 0;
 
 }
@@ -254,10 +260,10 @@ int findeigen(int M, float * darg, float ** eigenvector, float ** eigenvalues){
             break;
         }
     }
-    printf("D after convergence is\n");
-    printMatrix(M,M,&d_eval);
-    printf("E after convergence is \n");
-    printMatrix(M,M,&e_evec);
+    if(0==debug) printf("D after convergence is\n");
+    if(0==debug) printMatrix(M,M,&d_eval);
+    if(0==debug) printf("E after convergence is \n");
+    if(0==debug) printMatrix(M,M,&e_evec);
     for(int i=0;i<M;i++){
         (*eigenvalues)[i]=d_eval[M*i+i];
         for(int j=0;j<M;j++){
@@ -309,8 +315,8 @@ void SVD(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
     int * eigenvaluessortedorder = (int *)malloc(sizeof(int)*M);
     
     int statussorted = customsort(M,eigenvalues,&eigenvaluessortedorder);
-    printf("Sort order is\n");
-    printMatrixint(1,M,&eigenvaluessortedorder);
+    if(0==debug) printf("Sort order is\n");
+    if(0==debug) printMatrixint(1,M,&eigenvaluessortedorder);
     float * sigmamatrix = (float *)malloc(sizeof(float) * N*M);
     float * sigmainvmatrix = (float *)malloc(sizeof(float)*M*N);
     float * V = (float *)malloc(sizeof(float) * M *M);
@@ -338,25 +344,26 @@ void SVD(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
     float * tempmult = (float *)malloc(sizeof(float)*N*M);
     statusmultiply = multiply(N,M,D_T,M,M,V,&tempmult);
     statusmultiply = multiply(N,M,tempmult,M,N,sigmainvmatrix,U);
-
-    float * tempmult2 = (float *)malloc(sizeof(float)*N*M);
-    statusmultiply = multiply(N,N,*U,N,M,sigmamatrix,&tempmult);
-    statusmultiply = multiply(N,M,tempmult,M,M,*V_T,&tempmult2);
-    if(0==debug) printf("U is\n");
-    if(0==debug) printMatrix(N,N,U);
-    if(0==debug) printf("V_T is\n");
-    if(0==debug) printMatrix(M,M,V_T);
-    if(0==debug) printf("Sigma matrix is\n");
-    if(0==debug) printMatrix(N,M,&sigmamatrix);
-    if(0==debug) printf("Sigma inv is\n");
-    if(0==debug) printMatrix(M,N,&sigmainvmatrix);
-    if(0==debug) printf("Sigma is\n");
-    if(0==debug) printMatrix(1,N,SIGMA);
-    if(0==debug) printf("usigmavt is \n");
-    if(0==debug) printMatrix(N,M,&tempmult2);
-    if(0==debug) printf("ori m or d_t was");
-    if(0==debug) printMatrix(N,M,&D_T);
-    if(0==debug) printf("done svd\n");
+    if(0==debug){
+        float * tempmult2 = (float *)malloc(sizeof(float)*N*M);
+        statusmultiply = multiply(N,N,*U,N,M,sigmamatrix,&tempmult);
+        statusmultiply = multiply(N,M,tempmult,M,M,*V_T,&tempmult2);
+        printf("U is\n");
+        printMatrix(N,N,U);
+        printf("V_T is\n");
+        printMatrix(M,M,V_T);
+        printf("Sigma matrix is\n");
+        printMatrix(N,M,&sigmamatrix);
+        printf("Sigma inv is\n");
+        printMatrix(M,N,&sigmainvmatrix);
+        printf("Sigma is\n");
+        printMatrix(1,N,SIGMA);
+        printf("usigmavt is \n");
+        printMatrix(N,M,&tempmult2);
+        printf("ori m or d_t was");
+        printMatrix(N,M,&D_T);
+        printf("done svd\n");
+    }
 
 }
 
@@ -390,10 +397,13 @@ void PCA(int retention, int M, int N, float* D, float* U, float* SIGMA, float** 
     }
     *D_HAT = (float *)malloc(sizeof(float) * M*k);
     int statusmultiply = multiply(M, N, D, N, k, concatu, D_HAT);
-    if(0==debug) printf("D is\n");
-    if(0==debug) printMatrix(M,N,&D);
-    if(0==debug) printf("D_Hat is\n");
-    if(0==debug) printMatrix(M,k,D_HAT);
-    if(0==debug) printf("k is %d\n",k);
-    if(0==debug) printf("pca done\n");
+    if(0==debug){
+
+        printf("D is\n");
+        printMatrix(M,N,&D);
+        printf("D_Hat is\n");
+        printMatrix(M,k,D_HAT);
+        printf("k is %d\n",k);
+        printf("pca done\n");
+    }
 }
