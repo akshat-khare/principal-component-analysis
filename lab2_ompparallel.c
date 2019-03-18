@@ -91,6 +91,7 @@ double sumsquareelements(int M, int N, double *m){
 
 double sumabsoelements(int M, int N, double *m ){
     double temp=0.0;
+    #pragma omp parallel for reduction(+:temp)
     for(int i=0;i<M;i++){
         for(int j=0;j<N;j++){
             temp += absfunc(m[N*i+j],0.0);
