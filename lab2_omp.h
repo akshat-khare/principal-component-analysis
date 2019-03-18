@@ -59,4 +59,6 @@ Arguments:
 */
 void PCA(int retention, int M, int N, float* D, float* U, float* SIGMA, float** D_HAT, int *K);
 
+int qrfactors(int M, float * a, float ** q, float ** r);
+int qrmodifiedfactors(int M, float * a, float ** q, float ** r);
 #endif

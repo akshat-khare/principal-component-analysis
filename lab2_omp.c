@@ -2,6 +2,7 @@
 #include <omp.h>
 #include <math.h>
 #include <stdio.h>
+int debug =0;
 
 void calctranspose(int M, int N, float* D, float** D_T){
     for(int i=0;i<N;i++){
@@ -11,6 +12,26 @@ void calctranspose(int M, int N, float* D, float** D_T){
     }
 }
 
+void printMatrix(int m, int n, float ** mat){
+    printf("printing matrix\n");
+    for(int i=0;i<m;i++){
+        for(int j=0;j<n;j++){
+            printf("%.5f ",(*mat)[n*i+j]);
+        }
+        printf("\n");
+    }
+    printf("print over\n");
+}
+void printMatrixint(int m, int n, int ** mat){
+    printf("printing matrix\n");
+    for(int i=0;i<m;i++){
+        for(int j=0;j<n;j++){
+            printf("%d ",(*mat)[n*i+j]);
+        }
+        printf("\n");
+    }
+    printf("print over\n");
+}
 int multiply(int adim1, int adim2, float * a, int bdim1,int bdim2, float * b, float ** c){
     if(adim2!=bdim1){
         return -1;
@@ -59,34 +80,105 @@ int qrfactors(int M, float * a, float ** q, float ** r){
         }
         for(int diffell=0; diffell<j;diffell++){
             float tempproj = proj(M,&a,j,&e,diffell);
-            (*r)[M*diffell+j]=tempproj;
+            // (*r)[M*diffell+j]=tempproj;
             for(int i=0;i<M;i++){
                 u[M*i+j] = u[M*i+j] - tempproj*(e[M*i+diffell]);
             }
         }
         float normuj= norm(M,&u,j);
         if(normuj==0){
-            printf("division by zero possible here-------------------------");
+            if(0==debug) printf("division by zero possible here\n");
+            for(int i=0;i<M;i++){
+                e[M*i+j]=0;
+            }
+        }else{
+            for(int i=0;i<M;i++){
+                e[M*i+j]=(1.0/normuj)*(u[M*i+j]);
+            }
         }
-        for(int i=0;i<M;i++){
-            e[M*i+j]=(u[M*i+j])/(normuj);
-        }
-        (*r)[M*j+j]=proj(M,&a,j,&e,j);
+        
+        // (*r)[M*j+j]=proj(M,&a,j,&e,j);
+        // (*r)[M*j+j]=normuj;
 
     }
     for(int i=0;i<M;i++){
         for(int j=0;j<M;j++){
             (*q)[M*i+j] = e[M*i+j];
-            if(i>j){
-                (*r)[M*i+j]=0;
-            }
+            // if(i>j){
+            //     (*r)[M*i+j]=0;
+            // }
         }
     }
+    float * q_tm = (float *)malloc((sizeof(float) *M*M));
+    calctranspose(M,M,*q,&q_tm);
+    int statusmultiply = multiply(M,M,q_tm,M,M,a,r);
+    printf("q is\n");
+    printMatrix(M,M,q);
+    printf("r is\n");
+    printMatrix(M,M,r);
+    float * qmulr = (float *)malloc(sizeof(float) * M *M);
+    multiply(M,M,*q,M,M,*r,&qmulr);
+    printf("q x r is\n");
+    printMatrix(M,M,&qmulr);
+    printf("original matrix is\n");
+    printMatrix(M,M,&a);
+    free(q_tm);
+    free(qmulr);
     free(u);
     free(e);
     return 0;
 
 }
+
+
+int qrmodifiedfactors(int M, float * a, float ** q, float ** r){
+    float * v = (float *)malloc(sizeof(float) * M *M);
+    // float * e = (float *)malloc(sizeof(float) * M *M);
+    for(int i=0;i<M;i++){
+        for(int j=0;j<M;j++){
+            v[M*i+j]=a[M*i+j];
+            (*r)[M*i+j]=0.0;
+        }
+    }
+    for(int i=0;i<M;i++){
+        float tempnorm = norm(M,&v,i);
+        if(tempnorm==0){
+            printf("division by zero being done\n");
+        }
+        (*r)[M*i+i]= tempnorm;
+        for(int rowiter=0;rowiter<M;rowiter++){
+            (*q)[M*rowiter+i]= (1.0/tempnorm)*(v[M*rowiter+i]);
+        }
+        for(int j=i+1;j<M;j++){
+            float rij = proj(M,q,i,&v,j);
+            (*r)[M*i+j] = rij;
+            for(int rowiter=0;rowiter<M;rowiter++){
+                v[M*rowiter+j] = v[M*rowiter+j] -rij*((*q)[M*rowiter+i]);
+            }
+
+        }
+
+    }
+    free(v);
+    // float * q_tm = (float *)malloc((sizeof(float) *M*M));
+    // calctranspose(M,M,*q,&q_tm);
+    // int statusmultiply = multiply(M,M,q_tm,M,M,a,r);
+    printf("q is\n");
+    printMatrix(M,M,q);
+    printf("r is\n");
+    printMatrix(M,M,r);
+    float * qmulr = (float *)malloc(sizeof(float) * M *M);
+    multiply(M,M,*q,M,M,*r,&qmulr);
+    printf("q x r is\n");
+    printMatrix(M,M,&qmulr);
+    printf("original matrix is\n");
+    printMatrix(M,M,&a);
+    // free(q_tm);
+    free(qmulr);
+    return 0;
+
+}
+
 
 int findeigen(int M, float * darg, float ** eigenvector, float ** eigenvalues){
     float * d_eval = (float *)malloc(sizeof(float) * M*M);
@@ -129,7 +221,8 @@ int findeigen(int M, float * darg, float ** eigenvector, float ** eigenvalues){
     int statusqr;
     int statusmultiply;
     while(0==0){
-        statusqr = qrfactors(M, d_eval, &qmat, &rmat);
+        if(0==debug) printf("loop %d starting\n",numloop);
+        statusqr = qrmodifiedfactors(M, d_eval, &qmat, &rmat);
         statusmultiply = multiply(M,M,rmat,M,M,qmat, &d_evalnew);
         statusmultiply = multiply(M,M,e_evec,M,M,qmat,&e_evecnew);
         numchangesd=0;
@@ -151,10 +244,20 @@ int findeigen(int M, float * darg, float ** eigenvector, float ** eigenvalues){
             }
         } 
         numloop+=1;
+        if(0==debug) printf("loop %d ending with numchangesd %d and numchangese %d\n",numloop, numchangesd, numchangese);
         if(numchangesd<1 && numchangese<1){
+            if(0==debug) printf("breaking on loop %d\n",numloop);
+            break;
+        }
+        if(numloop>1000){
+            if(0==debug) printf("eigen end loop\n");
             break;
         }
     }
+    printf("D after convergence is\n");
+    printMatrix(M,M,&d_eval);
+    printf("E after convergence is \n");
+    printMatrix(M,M,&e_evec);
     for(int i=0;i<M;i++){
         (*eigenvalues)[i]=d_eval[M*i+i];
         for(int j=0;j<M;j++){
@@ -204,15 +307,29 @@ void SVD(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
     float * eigenvalues = (float *)malloc((sizeof(float) * M));
     int statuseigen = findeigen(M, d_multiply_d_t, &eigenvector, &eigenvalues);
     int * eigenvaluessortedorder = (int *)malloc(sizeof(int)*M);
+    
     int statussorted = customsort(M,eigenvalues,&eigenvaluessortedorder);
-    float * sigmainvmatrix = (float *)malloc(sizeof(float)*M*M);
+    printf("Sort order is\n");
+    printMatrixint(1,M,&eigenvaluessortedorder);
+    float * sigmamatrix = (float *)malloc(sizeof(float) * N*M);
+    float * sigmainvmatrix = (float *)malloc(sizeof(float)*M*N);
     float * V = (float *)malloc(sizeof(float) * M *M);
-    for(int i=0;i<M*M;i++){
+    for(int i=0;i<M*N;i++){
         sigmainvmatrix[i]=0;
+        sigmamatrix[i]=0;
     }
-    for(int i=0;i<M;i++){
-        (*SIGMA)[i] = eigenvalues[eigenvaluessortedorder[i]];
-        sigmainvmatrix[M*i+i] = 1.0/(eigenvalues[eigenvaluessortedorder[i]]);
+    for(int i=0;i<M*M;i++){
+        V[i]=0;
+    }
+    for(int i=0;i<N;i++){
+        float tempeigen = eigenvalues[eigenvaluessortedorder[i]];
+        tempeigen = (float) sqrt(tempeigen);
+        (*SIGMA)[i] = tempeigen;
+        if(tempeigen==0){
+            if(0==debug) printf("division by zero eigen possible here ============================\n");
+        }
+        sigmamatrix[M*i+i] = tempeigen;
+        sigmainvmatrix[N*i+i] = 1.0/(tempeigen);
         for(int j=0;j<M;j++){
             V[M*j+i] = eigenvector[M*j+eigenvaluessortedorder[i]];
         }
@@ -220,8 +337,26 @@ void SVD(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
     calctranspose(M,M,V,V_T);
     float * tempmult = (float *)malloc(sizeof(float)*N*M);
     statusmultiply = multiply(N,M,D_T,M,M,V,&tempmult);
-    statusmultiply = multiply(N,M,tempmult,M,M,sigmainvmatrix,U);
+    statusmultiply = multiply(N,M,tempmult,M,N,sigmainvmatrix,U);
 
+    float * tempmult2 = (float *)malloc(sizeof(float)*N*M);
+    statusmultiply = multiply(N,N,*U,N,M,sigmamatrix,&tempmult);
+    statusmultiply = multiply(N,M,tempmult,M,M,*V_T,&tempmult2);
+    if(0==debug) printf("U is\n");
+    if(0==debug) printMatrix(N,N,U);
+    if(0==debug) printf("V_T is\n");
+    if(0==debug) printMatrix(M,M,V_T);
+    if(0==debug) printf("Sigma matrix is\n");
+    if(0==debug) printMatrix(N,M,&sigmamatrix);
+    if(0==debug) printf("Sigma inv is\n");
+    if(0==debug) printMatrix(M,N,&sigmainvmatrix);
+    if(0==debug) printf("Sigma is\n");
+    if(0==debug) printMatrix(1,N,SIGMA);
+    if(0==debug) printf("usigmavt is \n");
+    if(0==debug) printMatrix(N,M,&tempmult2);
+    if(0==debug) printf("ori m or d_t was");
+    if(0==debug) printMatrix(N,M,&D_T);
+    if(0==debug) printf("done svd\n");
 
 }
 
@@ -233,13 +368,13 @@ void SVD(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
 void PCA(int retention, int M, int N, float* D, float* U, float* SIGMA, float** D_HAT, int *K)
 {
     float sigmasum = 0.0;
-    for(int i=0;i<M;i++){
+    for(int i=0;i<N;i++){
         sigmasum+= SIGMA[i];
     }
     float targetthressigma = retention*sigmasum/100.0;
     float tempsigmasum = 0.0;
     int k=0;
-    for(int i=0;i<M;i++){
+    for(int i=0;i<N;i++){
         k+=1;
         tempsigmasum+=SIGMA[i];
         if(tempsigmasum>targetthressigma){
@@ -255,5 +390,10 @@ void PCA(int retention, int M, int N, float* D, float* U, float* SIGMA, float** 
     }
     *D_HAT = (float *)malloc(sizeof(float) * M*k);
     int statusmultiply = multiply(M, N, D, N, k, concatu, D_HAT);
-
+    if(0==debug) printf("D is\n");
+    if(0==debug) printMatrix(M,N,&D);
+    if(0==debug) printf("D_Hat is\n");
+    if(0==debug) printMatrix(M,k,D_HAT);
+    if(0==debug) printf("k is %d\n",k);
+    if(0==debug) printf("pca done\n");
 }

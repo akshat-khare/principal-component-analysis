@@ -63,6 +63,11 @@ int main(int argc, char const *argv[])
 	// */
 	SVD(M, N, D, &U, &SIGMA, &V_T);
 	PCA(retention, M, N, D, U, SIGMA, &D_HAT, &K);
+	// float* atry = (float*)malloc(sizeof(float)*M*M);
+	// float* qtry = (float*)malloc(sizeof(float)*M*M);
+	// float* rtry = (float*)malloc(sizeof(float)*M*M);
+	// read_matrix(argv[1], &M,&M,&atry);
+	// qrmodifiedfactors(M,atry,&qtry,&rtry);
 
 	end_time = omp_get_wtime();
 	computation_time = ((double) (end_time - start_time));
