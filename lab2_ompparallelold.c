@@ -197,7 +197,6 @@ int qrmodifiedfactors(int M, double * a, double ** q, double ** r){
         for(int rowiter=0;rowiter<M;rowiter++){
             (*q)[M*rowiter+i] = (1.0/tempnorm)*(v[M*rowiter+i]);
         }
-        #pragma omp parallel for
         for(int j=i+1;j<M;j++){
             double rij = proj(M,q,i,&v,j);
             (*r)[M*i+j] = rij;
@@ -329,7 +328,6 @@ int findeigen(int M, double * darg, double ** eigenvector, double ** eigenvalues
                 tempdiff2 += absfunc(e_evecnew[M*i+j],e_evec[M*i+j]);
             }
         } 
-        #pragma omp parallel for collapse(2)
         for(int i=0;i<M;i++){
             for(int j=0;j<M;j++){
                 d_eval[M*i+j]=d_evalnew[M*i+j];
