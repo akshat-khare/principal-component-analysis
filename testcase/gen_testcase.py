@@ -18,9 +18,9 @@
 
 
 from random import uniform
-
-M = 40           # number of rows (samples) in input matrix D
-N = 4             # number of columns (features) in input matrix
+import sys
+M = int(sys.argv[1])          # number of rows (samples) in input matrix D
+N = int(sys.argv[2])             # number of columns (features) in input matrix
 lrange = -100000    # lrange <= element of matrix
 urange = 100000     # element of matrix <= urange
 
