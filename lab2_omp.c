@@ -5,6 +5,8 @@
 int debug =1;
 int debug2 = 1;
 int NUMTHREADS= 4;
+int maxloops= 100000;
+double convergencemetric = 0.001;
 
 void calctranspose(int M, int N, double* D, double** D_T){
     for(int i=0;i<N;i++){
@@ -79,6 +81,18 @@ int subtract(int adim1, int adim2, double * a, int bdim1,int bdim2, double * b, 
     }
     return 0;
 }
+int subtractdiag(int adim1, int adim2, double * a, int bdim1,int bdim2, double * b, double ** c){
+    if(adim1!=bdim1 || adim2!=bdim2){
+        return -1;
+    }
+    for(int i=0;i<adim1;i++){
+        // for(int j=0;j<adim2;j++){
+        (*c)[i] = a[adim2*i+i]-b[adim2*i+i];
+        // }
+    }
+    return 0;
+}
+
 double sumsquareelements(int M, int N, double *m){
     double temp=0.0;
     for(int i=0;i<M;i++){
@@ -97,6 +111,44 @@ double sumabsoelements(int M, int N, double *m ){
         }
     }
     return temp;
+}
+
+double maxabsoelements(int M, int N, double *m ){
+    double temp= absfunc(m[0],0.0);
+    for(int i=0;i<M;i++){
+        for(int j=0;j<N;j++){
+            if(absfunc(m[N*i+j],0.0)>temp){
+                temp = absfunc(m[N*i+j],0.0);
+            }
+        }
+    }
+    return temp;
+}
+
+double maxdiagabsoelements(int M, int N, double *m ){
+    double temp= absfunc(m[0],0.0);
+    for(int i=0;i<M;i++){
+        // for(int j=0;j<N;j++){
+        if(absfunc(m[N*i+i],0.0)>temp){
+            temp = absfunc(m[N*i+i],0.0);
+        }
+        // }
+    }
+    return temp;
+}
+int maxdiagabsoelementscmp(int M, int N, double *m ,double convf){
+    // double temp= convf;
+    int status = 1;
+    for(int i=0;i<M;i++){
+        // for(int j=0;j<N;j++){
+        if(absfunc(m[i],0.0)>convf){
+            // temp = absfunc(m[N*i+i],0.0);
+            status=-1;
+            break;
+        }
+        // }
+    }
+    return status;
 }
 
 
@@ -291,6 +343,8 @@ int findeigen(int M, double * darg, double ** eigenvector, double ** eigenvalues
     int numchangese=0;
     int statusqr;
     int statusmultiply;
+    double * ddiff = (double *)malloc(sizeof(double) * M);
+    // double * ediff = (double *)malloc(sizeof(double) * M*M);
     while(0==0){
         if(0==debug) printf("loop %d starting\n",numloop);
         statusqr = qrmodifiedfactors(M, d_eval, &qmat, &rmat);
@@ -313,22 +367,29 @@ int findeigen(int M, double * darg, double ** eigenvector, double ** eigenvalues
         // if(debug==0) printf("r is \n");
         // if(debug==0) printMatrix(M,M,&rmat);
 
-        numchangesd=0;
-        numchangese=0;
-        double tempdiff1=0.0;
-        double tempdiff2=0.0;
-        for(int i=0;i<M;i++){
-            for(int j=0;j<M;j++){
-                // if(absfunc(d_evalnew[M*i+j],d_eval[M*i+j])>0.0001){
-                //     numchangesd+=1;
-                // }
-                // if(absfunc(e_evecnew[M*i+j],e_evec[M*i+j])>0.0001){
-                //     numchangese+=1;
-                // }
-                tempdiff1 += absfunc(d_evalnew[M*i+j],d_eval[M*i+j]);
-                tempdiff2 += absfunc(e_evecnew[M*i+j],e_evec[M*i+j]);
-            }
-        } 
+        // numchangesd=0;
+        // numchangese=0;
+        // double tempdiff1=0.0;
+        // double tempdiff2=0.0;
+        // for(int i=0;i<M;i++){
+        //     for(int j=0;j<M;j++){
+        //         // if(absfunc(d_evalnew[M*i+j],d_eval[M*i+j])>0.0001){
+        //         //     numchangesd+=1;
+        //         // }
+        //         // if(absfunc(e_evecnew[M*i+j],e_evec[M*i+j])>0.0001){
+        //         //     numchangese+=1;
+        //         // }
+        //         tempdiff1 += absfunc(d_evalnew[M*i+j],d_eval[M*i+j]);
+        //         tempdiff2 += absfunc(e_evecnew[M*i+j],e_evec[M*i+j]);
+        //     }
+        // } 
+
+        subtractdiag(M,M,d_evalnew,M,M,d_eval,&ddiff);
+        if(0==debug) printMatrix(1,M,&ddiff);
+        // subtract(M,M,e_evecnew,M,M,e_evec,&ediff);
+        int maxddiffstatus = maxdiagabsoelementscmp(M,M,ddiff,convergencemetric);
+        // double maxediff = maxabsoelements(M,M,ediff);
+
         #pragma omp parallel for collapse(2)
         for(int i=0;i<M;i++){
             for(int j=0;j<M;j++){
@@ -337,17 +398,27 @@ int findeigen(int M, double * darg, double ** eigenvector, double ** eigenvalues
             }
         } 
         numloop+=1;
-        if(0==debug) printf("loop %d ending with numchangesd %d and numchangese %d\n",numloop, numchangesd, numchangese);
+        // if(0==debug) printf("loop %d ending with numchangesd %d and numchangese %d\n",numloop, numchangesd, numchangese);
+        if(0==debug) printf("loop %d ending with maxddiff %d\n",numloop, maxddiffstatus);        
+        if(0==debug2) printf("loop %d ending with maxddiff %d\n",numloop, maxddiffstatus);        
         
-        if(0==debug2) printf("eigen %d loop with diff %.6f %.6f\n",numloop, tempdiff1, tempdiff2);
-        if(tempdiff1 < 0.001 && tempdiff2<0.001){
+        // if(0==debug2) printf("eigen %d loop with diff %.6f %.6f\n",numloop, tempdiff1, tempdiff2);
+        // if(tempdiff1 < 0.001 && tempdiff2<0.001){
+        //     if(0==debug) printf("breaking on loop %d\n",numloop);
+        //     if(0==debug2) printf("breaking on loop %d\n",numloop);
+        //     break;
+        // }
+        if(maxddiffstatus==1){
             if(0==debug) printf("breaking on loop %d\n",numloop);
             if(0==debug2) printf("breaking on loop %d\n",numloop);
             break;
         }
-        if(numloop>1000){
-            if(0==debug) printf("eigen end loop with diff %.6f %.6f\n", tempdiff1, tempdiff2);
-            if(0==debug2) printf("eigen end loop with diff %.6f %.6f\n", tempdiff1, tempdiff2);
+        if(numloop>maxloops){
+            // if(0==debug) printf("eigen end loop with diff %.6f %.6f\n", tempdiff1, tempdiff2);
+            // if(0==debug2) printf("eigen end loop with diff %.6f %.6f\n", tempdiff1, tempdiff2);
+            if(0==debug) printf("eigen end loop with diff %d\n", maxddiffstatus);
+            if(0==debug2) printf("eigen end loop with diff %d\n", maxddiffstatus);
+            
             break;
         }
     }
