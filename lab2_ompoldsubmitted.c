@@ -3,19 +3,12 @@
 #include <math.h>
 #include <stdio.h>
 int debug =1;
-int debug2 = 1;
+int debug2 = 0;
 int NUMTHREADS= 4;
 int maxloops= 100000;
 double convergencemetric = 0.0001;
 
 void calctranspose(int M, int N, double* D, double** D_T){
-    for(int i=0;i<N;i++){
-        for(int j=0;j<M;j++){
-            (*D_T)[M*i+j] = D[N*j+i];
-        }
-    }
-}
-void calctransposefloat(int M, int N, float* D, float** D_T){
     for(int i=0;i<N;i++){
         for(int j=0;j<M;j++){
             (*D_T)[M*i+j] = D[N*j+i];
@@ -458,8 +451,12 @@ int customsort(int M, double * arr, int ** order){
     }
     return 0;
 }
-
-void SVDreal(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
+// /*
+// 	*****************************************************
+// 		TODO -- You must implement this function
+// 	*****************************************************
+// */
+void SVD(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
 {
     omp_set_num_threads(NUMTHREADS);
     //Sigma is not in matrix form
@@ -483,9 +480,7 @@ void SVDreal(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
     double * eigenvalues = (double *)malloc((sizeof(double) * M));
     int statuseigen = findeigen(M, d_multiply_d_t, &eigenvector, &eigenvalues);
     int * eigenvaluessortedorder = (int *)malloc(sizeof(int)*M);
-    for(int i=0;i<M;i++){
-        eigenvaluessortedorder[i]=i;
-    }
+    
     int statussorted = customsort(M,eigenvalues,&eigenvaluessortedorder);
     if(0==debug) printf("Sort order is\n");
     if(0==debug) printMatrixint(1,M,&eigenvaluessortedorder);
@@ -505,7 +500,7 @@ void SVDreal(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
     // for(int i=0;i<N*N;i++){
     //     Udouble[i]=0;
     // }
-    for(int i=0;i<M;i++){
+    for(int i=0;i<N;i++){
         double tempeigen = eigenvalues[eigenvaluessortedorder[i]];
         tempeigen = sqrt(tempeigen);
         (*SIGMA)[i] = (float) tempeigen;
@@ -513,11 +508,7 @@ void SVDreal(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
             if(0==debug) printf("division by zero eigen possible here ============================\n");
         }
         sigmamatrix[M*i+i] = tempeigen;
-        // if()
         sigmainvmatrix[N*i+i] = ((double) 1.0)/(tempeigen);
-        
-    }
-    for(int i=0;i<M;i++){
         for(int j=0;j<M;j++){
             V[M*j+i] = eigenvector[M*j+eigenvaluessortedorder[i]];
         }
@@ -561,82 +552,16 @@ void SVDreal(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
         double sumsquare= sumsquareelements(N,M,tempmult4);
         printf("Subtract Matrix is\n");
         printMatrix(N,M,&tempmult4);
-        double maxabsoele = maxabsoelements(N,M,tempmult4);
-        printf("sumsquare is %.6f after divided is %.6f max diff is %.6f\n ", sumsquare, sumsquare/(N*M), maxabsoele);
+        printf("sumsquare is %.6f after divided is %.6f\n ", sumsquare, sumsquare/(N*M));
+        printf("U is\n");
+        printMatrixfloat(N,N,U);
+        printf("Sigma is\n");
+        printMatrixfloat(1,N,SIGMA);
         //tempmult3 is u*sigma*v_t
+        // printf("V_T is\n");
+        // printMatrixfloat(M,M,V_T);
         
     }
-
-}
-// /*
-// 	*****************************************************
-// 		TODO -- You must implement this function
-// 	*****************************************************
-// */
-void SVD(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
-{
-    float * D_T = (float *)malloc(sizeof(float) * N*M);
-    // double * Ddouble = (double *)malloc(sizeof(double) * M*N);
-    // for(int i=0;i<M*N;i++){
-    //     Ddouble[i] =(double) D[i];
-    // }
-    calctransposefloat(M, N, D, &D_T);
-    float * Vinnerout = (float *)malloc(sizeof(float) * M*M);
-    float * U_Tinnerout = (float *)malloc(sizeof(float) * N*N);
-    float * sigmainner= (float *)malloc((sizeof(float)*M));
-    SVDreal(N,M,D_T,&Vinnerout,&sigmainner,&U_Tinnerout);
-    for(int i =0;i<N;i++){
-        (*SIGMA)[i] = sigmainner[i];
-    }
-    for(int i=0;i<N;i++){
-        for(int j=0;j<N;j++){
-            (*U)[N*i+j]=U_Tinnerout[N*j+i];
-        }
-    }
-    for(int i=0;i<M;i++){
-        for(int j=0;j<M;j++){
-            (*V_T)[M*i+j]=Vinnerout[M*j+i];
-        }
-    }
-    if(0==debug2){
-        double * Udouble = (double *)malloc(sizeof(double) * N *N);
-        for(int i=0;i<N;i++){
-            for(int j=0;j<N;j++){
-                Udouble[N*i+j] = (double) ((*U)[N*i+j]);
-            }
-        }
-        double * sigmamatrix = (double *)malloc(sizeof(double) * N*M);
-        for(int i=0;i<N*M;i++){
-            sigmamatrix[i]=0;
-        }
-        for(int i=0;i<N;i++){
-            sigmamatrix[M*i+i]=(double) ((*SIGMA)[i]);
-        }
-        double * V_Tdouble = (double *)malloc(sizeof(double) * M *M);
-        for(int i=0;i<M*M;i++){
-            V_Tdouble[i]=(double) ((*V_T)[i]);
-        }
-        double * D_Tdouble = (double *)malloc(sizeof(double) * N*M);
-        for(int i=0;i<N*M;i++){
-            D_Tdouble[i] = (double) (D_T[i]);
-        }
-        double * tempmult = (double *)malloc(sizeof(double)*N*M);
-        printf("now time for the real svd calc\n");
-        double * tempmult3 = (double *)malloc(sizeof(double)*N*M);
-        int statusmultiply = multiply(N,N,Udouble,N,M,sigmamatrix,&tempmult);
-        statusmultiply = multiply(N,M,tempmult,M,M,V_Tdouble,&tempmult3);
-        double * tempmult4 = (double *)malloc(sizeof(double)*N*M);
-        int statussubtract = subtract(N,M,D_Tdouble,N,M,tempmult3,&tempmult4);
-        double sumsquare= sumsquareelements(N,M,tempmult4);
-        double maxabsoele = maxabsoelements(N,M,tempmult4);
-        
-        printf("Subtract Matrix is\n");
-        printMatrix(N,M,&tempmult4);
-        printf("sumsquare is %.6f after divided is %.6f max diff is %.6f\n ", sumsquare, sumsquare/(N*M), maxabsoele);
-        //tempmult3 is u*sigma*v_t
-        
-    }
-
 
 }
 
@@ -679,6 +604,10 @@ void PCA(int retention, int M, int N, float* D, float* U, float* SIGMA, float** 
         (*D_HAT)[i] = (float) (D_HATdouble[i]);
     }
     if(0==debug){
+        printf("concat u is\n");
+        printMatrix(N,k, &concatu);
+        printf("ddouble is\n");
+        printMatrix(M,N,&Ddouble);
 
         printf("D is\n");
         printMatrixfloat(M,N,&D);
