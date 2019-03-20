@@ -3,7 +3,7 @@
 #include <math.h>
 #include <stdio.h>
 int debug =1;
-int debug2 = 1;
+int debug2 = 0;
 int NUMTHREADS= 4;
 
 void calctranspose(int M, int N, double* D, double** D_T){
@@ -480,6 +480,10 @@ void SVD(int M, int N, float* D, float** U, float** SIGMA, float** V_T)
         double * tempmult4 = (double *)malloc(sizeof(double)*N*M);
         int statussubtract = subtract(N,M,D_T,N,M,tempmult3,&tempmult4);
         double sumsquare= sumsquareelements(N,M,tempmult4);
+        printf("U is\n");
+        printMatrixfloat(N,N,U);
+        printf("Sigma is\n");
+        printMatrixfloat(1,N,SIGMA);
         printf("Subtract Matrix is\n");
         printMatrix(N,M,&tempmult4);
         printf("sumsquare is %.6f after divided is %.6f\n ", sumsquare, sumsquare/(N*M));
@@ -537,6 +541,8 @@ void PCA(int retention, int M, int N, float* D, float* U, float* SIGMA, float** 
         printf("pca done\n");
     }
     if(0==debug2){
+        printf("D_Hat is\n");
+        printMatrixfloat(M,k,D_HAT);
         printf("k is %d\n",k);
     }
 }
